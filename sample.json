@@ -1,0 +1,83 @@
+{
+  "project": "MyECU_TestProject",
+  "version": "1.0",
+  "author": "Test Engineer",
+  "requirements": [
+    {
+      "id": "REQ-001",
+      "title": "CAN message 0x1A0 cycle time",
+      "description": "The system shall transmit CAN message 0x1A0 every 10ms",
+      "type": "timing",
+      "protocol": "CAN",
+      "priority": "high",
+      "parameters": {
+        "message_id": "0x1A0",
+        "cycle_time_ms": 10,
+        "tolerance_ms": 0.5
+      },
+      "acceptance_criteria": "Message received within 9.5ms to 10.5ms window",
+      "status": "draft"
+    },
+    {
+      "id": "REQ-002",
+      "title": "EngineSpeed signal range",
+      "description": "Signal EngineSpeed shall be within 0 to 8000 rpm",
+      "type": "signal",
+      "protocol": "CAN",
+      "priority": "high",
+      "parameters": {
+        "signal_name": "EngineSpeed",
+        "min_value": 0,
+        "max_value": 8000,
+        "unit": "rpm"
+      },
+      "acceptance_criteria": "Signal value never exceeds 8000 or goes below 0",
+      "status": "draft"
+    },
+    {
+      "id": "REQ-003",
+      "title": "UDS response time",
+      "description": "ECU shall respond to diagnostic request 0x7DF within 50ms",
+      "type": "response",
+      "protocol": "CAN",
+      "priority": "high",
+      "parameters": {
+        "request_id": "0x7DF",
+        "response_id": "0x7E8",
+        "max_response_ms": 50
+      },
+      "acceptance_criteria": "Response received within 50ms of request",
+      "status": "draft"
+    },
+    {
+      "id": "REQ-004",
+      "title": "BatteryVoltage signal range",
+      "description": "Signal BatteryVoltage shall be within 9V to 16V",
+      "type": "signal",
+      "protocol": "CAN",
+      "priority": "medium",
+      "parameters": {
+        "signal_name": "BatteryVoltage",
+        "min_value": 9.0,
+        "max_value": 16.0,
+        "unit": "V"
+      },
+      "acceptance_criteria": "Signal value stays within 9.0 to 16.0 V",
+      "status": "draft"
+    },
+    {
+      "id": "REQ-005",
+      "title": "StatusMessage presence",
+      "description": "CAN message 0x2B0 shall be present on the bus",
+      "type": "presence",
+      "protocol": "CAN",
+      "priority": "medium",
+      "parameters": {
+        "message_id": "0x2B0",
+        "timeout_ms": 500
+      },
+      "acceptance_criteria": "Message received at least once within 500ms",
+      "status": "draft"
+    }
+  ]
+}
