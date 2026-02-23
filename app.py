@@ -22,7 +22,7 @@ OUTPUT_DIR.mkdir(exist_ok=True)
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────
-
+@app.route("/")
 @app.route("/ai_test_gen/")
 def index():
     return render_template("index.html", base_url=BASE_URL)
