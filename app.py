@@ -23,9 +23,25 @@ OUTPUT_DIR.mkdir(exist_ok=True)
 
 # ── Routes ────────────────────────────────────────────────────────────────────
 
-@app.route("/")
+@app.route("/ai_test_gen/")
 def index():
     return render_template("index.html", base_url=BASE_URL)
+
+@app.route("/ai_test_gen/api/parse", methods=["POST"])
+def parse_requirements():
+    ...
+
+@app.route("/ai_test_gen/api/generate", methods=["POST"])
+def generate():
+    ...
+
+@app.route("/ai_test_gen/api/download/<path:filename>")
+def download(filename):
+    ...
+
+@app.route("/ai_test_gen/api/sample")
+def sample():
+    ...
 
 
 @app.route("/api/parse", methods=["POST"])
