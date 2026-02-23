@@ -28,7 +28,7 @@ OUTPUT_DIR.mkdir(exist_ok=True)
 def index():
     return render_template("index.html", base_url=BASE_URL)
 
-
+@app.route("/api/parse", methods=["POST"])
 @app.route("/ai_test_gen/api/parse", methods=["POST"])
 def parse_requirements():
     """Accept uploaded JSON, parse it, return structured preview data."""
@@ -66,7 +66,7 @@ def parse_requirements():
         "raw": content,
     })
 
-
+@app.route("/api/generate", methods=["POST"])
 @app.route("/ai_test_gen/api/generate", methods=["POST"])
 def generate():
     """Generate CAPL scripts + vTestStudio project, return as zip."""
@@ -142,7 +142,7 @@ def generate():
         "zip":     str(zip_path),
     })
 
-
+@app.route("/api/download/<path:filename>")
 @app.route("/ai_test_gen/api/download/<path:filename>")
 def download(filename):
     zip_path = OUTPUT_DIR / filename
@@ -155,7 +155,7 @@ def download(filename):
         mimetype="application/zip",
     )
 
-
+@app.route("/api/sample")
 @app.route("/ai_test_gen/api/sample")
 def sample():
     sample_path = Path("sample/requirements.json")
