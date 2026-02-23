@@ -79,5 +79,5 @@
       "acceptance_criteria": "Message received at least once within 500ms",
       "status": "draft"
     }
-  ]
+  }
 }

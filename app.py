@@ -14,6 +14,8 @@ from app.generator.vts_project import generate_vts_project, generate_vtestunit, 
 
 app = Flask(__name__, template_folder="templates", static_folder="static")
 app.config["MAX_CONTENT_LENGTH"] = 5 * 1024 * 1024  # 5MB max upload
+app.config["APPLICATION_ROOT"] = "/ai_test_gen"
+BASE_URL = "/ai_test_gen"
 
 OUTPUT_DIR = Path("output")
 OUTPUT_DIR.mkdir(exist_ok=True)
@@ -23,7 +25,7 @@ OUTPUT_DIR.mkdir(exist_ok=True)
 
 @app.route("/")
 def index():
-    return render_template("index.html")
+    return render_template("index.html", base_url=BASE_URL)
 
 
 @app.route("/api/parse", methods=["POST"])
