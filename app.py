@@ -13,7 +13,7 @@ from app.generator.capl_generator import generate_capl_modules
 from app.generator.vts_project import generate_vts_project, generate_vtestunit, _filename_to_type
 
 app = Flask(__name__, template_folder="templates", static_folder="static")
-app.config["MAX_CONTENT_LENGTH"] = 5 * 1024 * 1024  # 5MB max upload
+app.config["MAX_CONTENT_LENGTH"] = 5 * 1024 * 1024
 app.config["APPLICATION_ROOT"] = "/ai_test_gen"
 BASE_URL = "/ai_test_gen"
 
@@ -25,22 +25,10 @@ OUTPUT_DIR.mkdir(exist_ok=True)
 
 @app.route("/ai_test_gen/")
 def index():
-    ...
+    return render_template("index.html", base_url=BASE_URL)
+
 
 @app.route("/ai_test_gen/api/parse", methods=["POST"])
-def parse_requirements():
-    ...
-
-@app.route("/ai_test_gen/api/download/<path:filename>")
-def download(filename):
-    ...
-
-@app.route("/ai_test_gen/api/sample")
-def sample():
-    ...
-
-
-@app.route("/api/parse", methods=["POST"])
 def parse_requirements():
     """Accept uploaded JSON, parse it, return structured preview data."""
     if "file" not in request.files:
@@ -56,7 +44,6 @@ def parse_requirements():
     except Exception as e:
         return jsonify({"error": f"Parse error: {str(e)}"}), 422
 
-    # Return summary for preview table
     return jsonify({
         "project":      req_file.project,
         "version":      req_file.version,
@@ -75,11 +62,11 @@ def parse_requirements():
             }
             for r in req_file.requirements
         ],
-        "raw": content,  # passed back so /api/generate doesn't need re-upload
+        "raw": content,
     })
 
 
-@app.route("/api/generate", methods=["POST"])
+@app.route("/ai_test_gen/api/generate", methods=["POST"])
 def generate():
     """Generate CAPL scripts + vTestStudio project, return as zip."""
     data = request.get_json()
@@ -92,8 +79,8 @@ def generate():
         return jsonify({"error": f"Parse error: {str(e)}"}), 422
 
     options = data.get("options", {})
-    include_capl     = options.get("capl", True)
-    include_vtp      = options.get("vtp", True)
+    include_capl      = options.get("capl", True)
+    include_vtp       = options.get("vtp", True)
     include_vtestunit = options.get("vtestunit", True)
 
     log = []
@@ -103,13 +90,13 @@ def generate():
     if include_capl:
         capl_modules = generate_capl_modules(req_file)
         for fname in capl_modules:
-            log.append(f"Generated {fname}")
+            log.append(f"✓ Generated {fname}")
 
     # 2. Generate vTestStudio project
     vtp_content = ""
     if include_vtp:
         vtp_content = generate_vts_project(req_file, capl_modules)
-        log.append(f"Generated {req_file.project}.vtp")
+        log.append(f"✓ Generated {req_file.project}.vtp")
 
     # 3. Generate .vtestunit files
     vtestunit_files = {}
@@ -121,9 +108,9 @@ def generate():
         for rtype, reqs in groups.items():
             fname = f"{req_file.project}_{rtype.capitalize()}.vtestunit"
             vtestunit_files[fname] = generate_vtestunit(req_file, fname, reqs)
-            log.append(f"Generated {fname}")
+            log.append(f"✓ Generated {fname}")
 
-    # 4. Pack into zip in memory
+    # 4. Pack into zip
     zip_buffer = io.BytesIO()
     with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
         for fname, content in capl_modules.items():
@@ -132,20 +119,17 @@ def generate():
             zf.writestr(f"{req_file.project}.vtp", vtp_content)
         for fname, content in vtestunit_files.items():
             zf.writestr(fname, content)
-        # Include original requirements
         zf.writestr("requirements.json", data["raw"])
 
     zip_buffer.seek(0)
-    log.append("Zip ready for download")
+    log.append("→ Zip ready for download")
 
-    # Also return file listing for the UI
     files = (
         list(capl_modules.keys())
         + ([f"{req_file.project}.vtp"] if vtp_content else [])
         + list(vtestunit_files.keys())
     )
 
-    # Store zip temporarily for download
     zip_path = OUTPUT_DIR / f"{req_file.project}_output.zip"
     with open(zip_path, "wb") as out:
         out.write(zip_buffer.getvalue())
@@ -158,7 +142,7 @@ def generate():
     })
 
 
-@app.route("/api/download/<path:filename>")
+@app.route("/ai_test_gen/api/download/<path:filename>")
 def download(filename):
     zip_path = OUTPUT_DIR / filename
     if not zip_path.exists():
@@ -171,9 +155,8 @@ def download(filename):
     )
 
 
-@app.route("/api/sample")
+@app.route("/ai_test_gen/api/sample")
 def sample():
-    """Return the sample requirements JSON so users can see the expected format."""
     sample_path = Path("sample/requirements.json")
     if sample_path.exists():
         return send_file(sample_path, mimetype="application/json")
