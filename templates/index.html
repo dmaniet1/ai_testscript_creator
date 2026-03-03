@@ -126,8 +126,8 @@
 
 <aside class="sidebar">
   <div class="logo">
-    <div class="logo-text">CAPL·GEN</div>
-    <div class="logo-sub">v1.0 · Test Framework</div>
+    <div class="logo-text">TestScript·GEN</div>
+    <div class="logo-sub">v1.1 · Test Framework</div>
   </div>
   <nav class="nav">
     <div class="nav-section">Workflow</div>
@@ -165,7 +165,7 @@
         <div style="margin-left:auto;font-size:18px;font-weight:600;letter-spacing:-.02em;white-space:nowrap;">Vehicle Engineering – Who Else</div>
       </div>
       <div style="margin-top:6px;font-size:13px;color:var(--text-muted);">
-        <div>requirements JSON → parse → generate CAPL scripts + vTestStudio project</div>
+        <div>requirements JSON → parse → generate CAPL scripts + vTestStudio project & Pytest as a PoC</div>
         <div>D Maniette & J Wictorinus</div>
       </div>
     </div>
@@ -257,10 +257,13 @@
         <div class="card" style="margin-bottom:20px;" id="generateCard">
           <div class="card-header"><div class="card-title">Generate</div></div>
           <div class="card-body">
-            <label class="option-row"><input type="checkbox" id="optCapl" checked> CAPL test scripts (.can)</label>
-            <label class="option-row"><input type="checkbox" id="optVtp" checked> vTestStudio project (.vtp)</label>
-            <label class="option-row"><input type="checkbox" id="optVtestunit" checked> Test module files (.vtestunit)</label>
-            <button class="btn btn-primary" id="generateBtn" onclick="runGenerate()" disabled>⚡ Generate All</button>
+            <div style="font-size:10px;font-family:'IBM Plex Mono',monospace;color:var(--text-muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.08em;">CAPL / vTestStudio</div>
+              <label class="option-row"><input type="checkbox" id="optCapl" checked> CAPL test scripts (.can)</label>
+              <label class="option-row"><input type="checkbox" id="optVtp" checked> vTestStudio project (.vtp)</label>
+              <label class="option-row"><input type="checkbox" id="optVtestunit" checked> Test module files (.vtestunit)</label>
+              <div style="font-size:10px;font-family:'IBM Plex Mono',monospace;color:var(--text-muted);margin:12px 0 8px;text-transform:uppercase;letter-spacing:.08em;">Python / pytest</div>
+              <label class="option-row"><input type="checkbox" id="optPytest"> pytest test scripts (.py) + conftest.py</label>
+              <button class="btn btn-primary" id="generateBtn" onclick="runGenerate()" disabled>⚡ Generate All</button>
           </div>
         </div>
 
@@ -390,6 +393,7 @@
       capl:      document.getElementById('optCapl').checked,
       vtp:       document.getElementById('optVtp').checked,
       vtestunit: document.getElementById('optVtestunit').checked,
+      pytest:    document.getElementById('optPytest').checked,
     };
 
     try {
