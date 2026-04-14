@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CAPL-GEN · Test Framework</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0f14; --surface: #141720; --surface2: #1c2030;
+    --border: #252a3a; --accent: #00d4ff; --accent2: #7b61ff;
+    --green: #00e5a0; --orange: #ff8c42; --red: #ff4d6d;
+    --text: #e8eaf2; --text-muted: #6b7394; --text-dim: #3d4460;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'IBM Plex Sans',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; }
+  body::before {
+    content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
+    background-image: linear-gradient(rgba(0,212,255,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,212,255,.03) 1px,transparent 1px);
+    background-size:40px 40px;
+  }
+  .sidebar { position:fixed; left:0; top:0; bottom:0; width:220px; background:var(--surface); border-right:1px solid var(--border); display:flex; flex-direction:column; z-index:10; }
+  .logo { padding:24px 20px; border-bottom:1px solid var(--border); }
+  .logo-text { font-family:'IBM Plex Mono',monospace; font-size:13px; font-weight:600; color:var(--accent); letter-spacing:.1em; text-transform:uppercase; }
+  .logo-sub { font-size:10px; color:var(--text-muted); margin-top:3px; font-family:'IBM Plex Mono',monospace; }
+  .nav { padding:16px 0; }
+  .nav-section { padding:8px 20px 4px; font-size:9px; text-transform:uppercase; letter-spacing:.15em; color:var(--text-dim); font-family:'IBM Plex Mono',monospace; }
+  .nav-item { display:flex; align-items:center; gap:10px; padding:9px 20px; font-size:13px; color:var(--text-muted); cursor:pointer; border-left:2px solid transparent; text-decoration:none; transition:all .15s; }
+  .nav-item:hover { color:var(--text); background:rgba(255,255,255,.03); }
+  .nav-item.active { color:var(--accent); border-left-color:var(--accent); background:rgba(0,212,255,.05); }
+  .nav-badge { margin-left:auto; background:var(--accent2); color:white; font-size:9px; padding:2px 6px; border-radius:10px; font-family:'IBM Plex Mono',monospace; }
+  .main { margin-left:220px; min-height:100vh; position:relative; z-index:1; }
+  .topbar { height:56px; border-bottom:1px solid var(--border); display:flex; align-items:center; padding:0 32px; gap:16px; background:rgba(13,15,20,.8); backdrop-filter:blur(10px); position:sticky; top:0; z-index:5; }
+  .breadcrumb { font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--text-muted); }
+  .breadcrumb span { color:var(--text); }
+  .topbar-right { margin-left:auto; display:flex; gap:10px; align-items:center; }
+  .status-dot { width:8px; height:8px; border-radius:50%; background:var(--green); box-shadow:0 0 8px var(--green); animation:pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+  .status-label { font-size:11px; color:var(--text-muted); font-family:'IBM Plex Mono',monospace; }
+  .content { padding:32px; }
+  .pipeline { display:flex; background:var(--surface); border:1px solid var(--border); border-radius:8px; overflow:hidden; margin-bottom:28px; }
+  .pipeline-step { flex:1; padding:14px 20px; display:flex; align-items:center; gap:10px; font-size:12px; position:relative; }
+  .pipeline-step+.pipeline-step::before { content:''; position:absolute; left:0; top:25%; bottom:25%; width:1px; background:var(--border); }
+  .pipeline-step.done { background:rgba(0,229,160,.05); }
+  .pipeline-step.active { background:rgba(0,212,255,.07); }
+  .step-num { width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-family:'IBM Plex Mono',monospace; font-size:10px; font-weight:600; flex-shrink:0; }
+  .pipeline-step.done .step-num { background:var(--green); color:#000; }
+  .pipeline-step.active .step-num { background:var(--accent); color:#000; }
+  .pipeline-step.pending .step-num { background:var(--border); color:var(--text-muted); }
+  .step-label { font-weight:500; font-size:12px; }
+  .step-sub { font-size:10px; color:var(--text-muted); font-family:'IBM Plex Mono',monospace; margin-top:1px; }
+  .pipeline-step.pending .step-label { color:var(--text-muted); }
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:8px; overflow:hidden; }
+  .card-header { padding:14px 20px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
+  .card-title { font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.08em; color:var(--text-muted); font-family:'IBM Plex Mono',monospace; }
+  .card-body { padding:18px 20px; }
+  .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+  .upload-zone { border:1.5px dashed var(--border); border-radius:6px; padding:36px 20px; text-align:center; cursor:pointer; transition:all .2s; background:rgba(0,212,255,.02); }
+  .upload-zone:hover,.upload-zone.dragover { border-color:var(--accent); background:rgba(0,212,255,.06); }
+  .upload-icon { color:var(--accent); opacity:.7; margin-bottom:12px; }
+  .upload-text { font-size:13px; color:var(--text-muted); }
+  .upload-text strong { color:var(--accent); cursor:pointer; }
+  .upload-formats { font-size:10px; font-family:'IBM Plex Mono',monospace; color:var(--text-dim); margin-top:6px; letter-spacing:.05em; }
+  #fileInput { display:none; }
+  .file-loaded { display:none; align-items:center; gap:12px; padding:12px; background:var(--surface2); border:1px solid var(--border); border-radius:6px; }
+  .file-loaded.visible { display:flex; }
+  .file-icon-badge { width:36px; height:36px; border-radius:5px; background:rgba(123,97,255,.15); color:var(--accent2); display:flex; align-items:center; justify-content:center; font-family:'IBM Plex Mono',monospace; font-size:10px; font-weight:600; }
+  .file-name { font-size:12px; font-weight:500; }
+  .file-meta { font-size:10px; color:var(--text-muted); font-family:'IBM Plex Mono',monospace; }
+  .file-status-badge { margin-left:auto; padding:3px 8px; border-radius:4px; font-size:10px; font-family:'IBM Plex Mono',monospace; font-weight:500; background:rgba(0,229,160,.1); color:var(--green); }
+  .req-table { width:100%; border-collapse:collapse; font-size:12px; }
+  .req-table th { text-align:left; padding:8px 12px; font-family:'IBM Plex Mono',monospace; font-size:10px; text-transform:uppercase; letter-spacing:.08em; color:var(--text-muted); border-bottom:1px solid var(--border); }
+  .req-table td { padding:9px 12px; border-bottom:1px solid rgba(37,42,58,.5); vertical-align:middle; }
+  .req-table tr:last-child td { border-bottom:none; }
+  .req-table tr:hover td { background:rgba(255,255,255,.02); }
+  .req-id { font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--accent); }
+  .req-desc { line-height:1.4; }
+  .req-desc small { display:block; color:var(--text-muted); font-size:10px; margin-top:1px; }
+  .tag { display:inline-block; padding:2px 7px; border-radius:3px; font-size:10px; font-family:'IBM Plex Mono',monospace; font-weight:500; }
+  .tag-timing  { background:rgba(255,140,66,.1); color:var(--orange); }
+  .tag-signal  { background:rgba(0,229,160,.1); color:var(--green); }
+  .tag-response{ background:rgba(0,212,255,.1); color:var(--accent); }
+  .tag-presence{ background:rgba(123,97,255,.1); color:var(--accent2); }
+  .prio-dot { width:6px; height:6px; border-radius:50%; display:inline-block; }
+  .prio-high   { background:var(--red); box-shadow:0 0 5px var(--red); }
+  .prio-medium { background:var(--orange); }
+  .prio-low    { background:var(--text-dim); }
+  .empty-state { padding:32px; text-align:center; color:var(--text-dim); font-size:12px; font-family:'IBM Plex Mono',monospace; }
+  .stats-row { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:20px; }
+  .stat-card { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:14px 18px; }
+  .stat-value { font-family:'IBM Plex Mono',monospace; font-size:26px; font-weight:600; line-height:1; }
+  .stat-blue { color:var(--accent); } .stat-green { color:var(--green); } .stat-purple { color:var(--accent2); }
+  .stat-label { font-size:10px; color:var(--text-muted); margin-top:5px; text-transform:uppercase; letter-spacing:.08em; font-family:'IBM Plex Mono',monospace; }
+  .option-row { display:flex; align-items:center; gap:10px; font-size:12px; padding:6px 0; cursor:pointer; }
+  .option-row input[type=checkbox] { accent-color:var(--accent); width:14px; height:14px; }
+  .btn { padding:9px 18px; border-radius:5px; font-size:12px; font-weight:600; cursor:pointer; transition:all .15s; font-family:'IBM Plex Sans',sans-serif; border:none; }
+  .btn:disabled { opacity:.4; cursor:not-allowed; }
+  .btn-primary { background:var(--accent); color:#000; width:100%; margin-top:14px; }
+  .btn-primary:hover:not(:disabled) { background:#33ddff; box-shadow:0 0 20px rgba(0,212,255,.3); }
+  .btn-success { background:var(--green); color:#000; padding:6px 14px; font-size:11px; }
+  .btn-success:hover:not(:disabled) { background:#33ffb8; }
+  .btn-sm { padding:5px 10px; font-size:11px; background:transparent; border:1px solid var(--border); color:var(--text-muted); border-radius:4px; cursor:pointer; }
+  .btn-sm:hover { border-color:var(--text-muted); color:var(--text); }
+  .output-item { display:flex; align-items:center; gap:12px; padding:10px 14px; background:var(--surface2); border:1px solid var(--border); border-radius:6px; margin-bottom:8px; transition:border-color .2s; }
+  .output-item:hover { border-color:rgba(0,212,255,.4); }
+  .output-file-icon { width:32px; height:32px; border-radius:5px; background:rgba(0,212,255,.08); display:flex; align-items:center; justify-content:center; flex-shrink:0; color:var(--accent); }
+  .output-name { font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--accent); }
+  .output-desc { font-size:10px; color:var(--text-muted); margin-top:1px; }
+  .btn-dl { padding:4px 10px; background:rgba(0,212,255,.08); border:1px solid rgba(0,212,255,.25); border-radius:4px; color:var(--accent); font-size:10px; font-family:'IBM Plex Mono',monospace; cursor:pointer; transition:all .15s; margin-left:auto; }
+  .btn-dl:hover { background:rgba(0,212,255,.18); }
+  .log-output { background:#0a0c10; border:1px solid var(--border); border-radius:6px; padding:10px 14px; font-family:'IBM Plex Mono',monospace; font-size:11px; line-height:1.8; max-height:150px; overflow-y:auto; margin-top:12px; }
+  .log-line { display:flex; gap:10px; }
+  .log-time { color:var(--text-dim); flex-shrink:0; }
+  .log-ok { color:var(--green); } .log-info { color:var(--accent); } .log-warn { color:var(--orange); } .log-err { color:var(--red); }
+  .code-preview { background:#0a0c10; border:1px solid var(--border); border-radius:6px; padding:14px; font-family:'IBM Plex Mono',monospace; font-size:11px; line-height:1.7; overflow-x:auto; color:#8892b0; max-height:220px; overflow-y:auto; }
+  .kw { color:#7b61ff; } .fn { color:#00d4ff; } .str { color:#00e5a0; } .cm { color:#3d4460; } .num { color:#ff8c42; }
+  ::-webkit-scrollbar { width:4px; height:4px; }
+  ::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
+  ::-webkit-scrollbar-track { background:transparent; }
+  .section-title { font-size:11px; font-family:'IBM Plex Mono',monospace; text-transform:uppercase; letter-spacing:.1em; color:var(--text-muted); margin-bottom:10px; }
+  .hidden { display:none !important; }
+  .mt-16 { margin-top:16px; }
+</style>
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="logo">
+    <div class="logo-text">CAPL·GEN</div>
+    <div class="logo-sub">v1.0 · Test Framework</div>
+  </div>
+  <nav class="nav">
+    <div class="nav-section">Workflow</div>
+    <a class="nav-item active" href="#">
+      <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4h12M2 8h8M2 12h10"/></svg>
+      Requirements
+      <span class="nav-badge" id="navBadge" style="display:none">0</span>
+    </a>
+    <a class="nav-item" href="#" onclick="scrollToGenerate()">
+      <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 2l8 6-8 6V2z"/></svg>
+      Generate
+    </a>
+    <div class="nav-section" style="margin-top:12px;">Help</div>
+    <a class="nav-item" id="sampleLink" href="#" target="_blank">
+      <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 2h6l3 3v9H4V2z"/><path d="M10 2v3h3"/></svg>
+      Sample JSON
+    </a>
+  </nav>
+</aside>
+
+<main class="main">
+  <div class="topbar">
+    <div class="breadcrumb">capl-gen / <span>requirements</span></div>
+    <div class="topbar-right">
+      <div class="status-dot"></div>
+      <div class="status-label">Flask · :8181</div>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <div style="margin-bottom:28px; width:100%;">
+      <div style="display:flex; align-items:center; width:100%;">
+        <div style="font-size:22px;font-weight:600;letter-spacing:-.02em;">Test Script Generator</div>
+        <div style="margin-left:auto;font-size:18px;font-weight:600;letter-spacing:-.02em;white-space:nowrap;">Vehicle Engineering – Who Else</div>
+      </div>
+      <div style="margin-top:6px;font-size:13px;color:var(--text-muted);">
+        <div>requirements JSON → parse → generate CAPL scripts + vTestStudio project</div>
+        <div>D Maniette & J Wictorinus</div>
+      </div>
+    </div>
+
+    <div class="pipeline" id="pipeline">
+      <div class="pipeline-step active" id="step1">
+        <div class="step-num">1</div>
+        <div><div class="step-label">Upload</div><div class="step-sub">requirements.json</div></div>
+      </div>
+      <div class="pipeline-step pending" id="step2">
+        <div class="step-num">2</div>
+        <div><div class="step-label">Parse & Preview</div><div class="step-sub">—</div></div>
+      </div>
+      <div class="pipeline-step pending" id="step3">
+        <div class="step-num">3</div>
+        <div><div class="step-label">Generate</div><div class="step-sub">CAPL + .vtp</div></div>
+      </div>
+      <div class="pipeline-step pending" id="step4">
+        <div class="step-num">4</div>
+        <div><div class="step-label">Download</div><div class="step-sub">project.zip</div></div>
+      </div>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat-card"><div class="stat-value stat-blue" id="statReqs">0</div><div class="stat-label">Requirements</div></div>
+      <div class="stat-card"><div class="stat-value stat-green" id="statTests">0</div><div class="stat-label">Test Cases</div></div>
+      <div class="stat-card"><div class="stat-value stat-purple" id="statModules">0</div><div class="stat-label">CAPL Modules</div></div>
+    </div>
+
+    <div class="grid-2">
+      <div>
+        <div class="card" style="margin-bottom:20px;">
+          <div class="card-header">
+            <div class="card-title">Input File</div>
+            <button class="btn-sm" onclick="resetUpload()">Change</button>
+          </div>
+          <div class="card-body">
+            <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()"
+                 ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)">
+              <div class="upload-icon">
+                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+                </svg>
+              </div>
+              <div class="upload-text">Drop file or <strong>browse</strong></div>
+              <div class="upload-formats">requirements.json</div>
+            </div>
+            <input type="file" id="fileInput" accept=".json" onchange="onFileSelected(event)">
+            <div class="file-loaded mt-16" id="fileLoaded">
+              <div class="file-icon-badge">JSON</div>
+              <div>
+                <div class="file-name" id="loadedFileName">—</div>
+                <div class="file-meta" id="loadedFileMeta">—</div>
+              </div>
+              <div class="file-status-badge">parsed</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Parsed Requirements</div>
+            <div style="font-size:11px;color:var(--text-muted);font-family:'IBM Plex Mono',monospace;" id="reqCount">0 items</div>
+          </div>
+          <div style="overflow-x:auto;">
+            <table class="req-table">
+              <thead><tr><th>ID</th><th>Requirement</th><th>Type</th><th>Prio</th></tr></thead>
+              <tbody id="reqTableBody">
+                <tr><td colspan="4" class="empty-state">Upload a requirements.json to begin</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div id="rightPanel">
+        <div class="card" style="margin-bottom:20px;">
+          <div class="card-header">
+            <div class="card-title">CAPL Preview</div>
+            <div style="font-size:10px;color:var(--text-muted);font-family:'IBM Plex Mono',monospace;" id="previewLabel">—</div>
+          </div>
+          <div class="card-body" style="padding:0;">
+            <div class="code-preview" id="caplPreview" style="border:none;border-radius:0;">
+              <span style="color:var(--text-dim);">/* Upload requirements to see generated CAPL preview */</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:20px;" id="generateCard">
+          <div class="card-header"><div class="card-title">Generate</div></div>
+          <div class="card-body">
+            <label class="option-row"><input type="checkbox" id="optCapl" checked> CAPL test scripts (.can)</label>
+            <label class="option-row"><input type="checkbox" id="optVtp" checked> vTestStudio project (.vtp)</label>
+            <label class="option-row"><input type="checkbox" id="optVtestunit" checked> Test module files (.vtestunit)</label>
+            <button class="btn btn-primary" id="generateBtn" onclick="runGenerate()" disabled>⚡ Generate All</button>
+          </div>
+        </div>
+
+        <div class="card" id="outputCard">
+          <div class="card-header">
+            <div class="card-title">Output Files</div>
+            <button class="btn btn-success" id="downloadBtn" onclick="downloadZip()" disabled>↓ Download .zip</button>
+          </div>
+          <div class="card-body" style="padding:14px 16px;">
+            <div id="outputFilesList">
+              <div style="color:var(--text-dim);font-size:11px;font-family:'IBM Plex Mono',monospace;padding:8px 0;">Generate to see output files</div>
+            </div>
+            <div id="logSection" class="hidden">
+              <div class="section-title mt-16">Generation Log</div>
+              <div class="log-output" id="logOutput"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<script>
+  // ── Config ───────────────────────────────────────────────────────────────────
+  const BASE_URL = '{{ base_url }}';
+
+  // Set sample link dynamically
+  document.getElementById('sampleLink').href = BASE_URL + '/api/sample';
+
+  // ── State ────────────────────────────────────────────────────────────────────
+  let parsedData = null;
+  let zipFilename = null;
+
+  // ── Drag & drop ──────────────────────────────────────────────────────────────
+  function onDragOver(e) { e.preventDefault(); document.getElementById('uploadZone').classList.add('dragover'); }
+  function onDragLeave(e) { document.getElementById('uploadZone').classList.remove('dragover'); }
+  function onDrop(e) {
+    e.preventDefault();
+    document.getElementById('uploadZone').classList.remove('dragover');
+    const file = e.dataTransfer.files[0];
+    if (file) handleFile(file);
+  }
+  function onFileSelected(e) { handleFile(e.target.files[0]); }
+
+  function handleFile(file) {
+    if (!file.name.endsWith('.json')) { alert('Please upload a .json file'); return; }
+    const reader = new FileReader();
+    reader.onload = (e) => uploadAndParse(file.name, file.size, e.target.result);
+    reader.readAsText(file);
+  }
+
+  // ── Parse ────────────────────────────────────────────────────────────────────
+  async function uploadAndParse(filename, size, content) {
+    const blob = new Blob([content], { type: 'application/json' });
+    const form = new FormData();
+    form.append('file', blob, filename);
+
+    try {
+      const resp = await fetch(`${BASE_URL}/api/parse`, { method: 'POST', body: form });
+      const data = await resp.json();
+      if (data.error) { alert('Parse error: ' + data.error); return; }
+
+      parsedData = data;
+      renderTable(data);
+      updateStats(data);
+      updatePipeline(2);
+      showFileLoaded(filename, size, data.count);
+      renderCaplPreview(data);
+      document.getElementById('generateBtn').disabled = false;
+      document.getElementById('navBadge').textContent = data.count;
+      document.getElementById('navBadge').style.display = '';
+      addLog('info', `Parsed ${data.count} requirements from ${filename}`);
+    } catch (err) {
+      alert('Upload failed: ' + err.message);
+    }
+  }
+
+  // ── Table ────────────────────────────────────────────────────────────────────
+  function renderTable(data) {
+    const tbody = document.getElementById('reqTableBody');
+    tbody.innerHTML = '';
+    document.getElementById('reqCount').textContent = `${data.count} items`;
+    data.requirements.forEach(req => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><div class="req-id">${req.id}</div></td>
+        <td><div class="req-desc">${req.title}<small>${req.description.substring(0,60)}${req.description.length>60?'…':''}</small></div></td>
+        <td><span class="tag tag-${req.type}">${req.type}</span></td>
+        <td><span class="prio-dot prio-${req.priority}" title="${req.priority}"></span></td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  // ── Stats ────────────────────────────────────────────────────────────────────
+  function updateStats(data) {
+    document.getElementById('statReqs').textContent = data.count;
+    document.getElementById('statTests').textContent = data.count;
+    const types = new Set(data.requirements.map(r => r.type));
+    document.getElementById('statModules').textContent = types.size;
+  }
+
+  // ── CAPL preview ─────────────────────────────────────────────────────────────
+  function renderCaplPreview(data) {
+    if (!data.requirements.length) return;
+    const req = data.requirements[0];
+    document.getElementById('previewLabel').textContent = `TC_${req.id.replace('-','_')}.can`;
+    const previews = {
+      timing:   `<span class="cm">/* ${req.id} · ${req.title} */</span>\n\n<span class="kw">testcase</span> <span class="fn">TC_${req.id.replace('-','_')}_TimingCheck</span>() {\n  <span class="kw">message</span> ${req.parameters.message_id||'0x1A0'} msg;\n  <span class="kw">float</span> tFirst, delta;\n  TestCaseTitle(<span class="str">"${req.id}"</span>, <span class="str">"${req.title}"</span>);\n  <span class="kw">if</span> (TestWaitForMessage(${req.parameters.message_id||'0x1A0'}, <span class="num">1000</span>)) {\n    TestStepPass(<span class="str">"CYCLE_PASS"</span>, <span class="str">"OK"</span>);\n  } <span class="kw">else</span> {\n    TestStepFail(<span class="str">"MSG_MISSING"</span>, <span class="str">"Not on bus"</span>);\n  }\n}`,
+      signal:   `<span class="cm">/* ${req.id} · ${req.title} */</span>\n\n<span class="kw">testcase</span> <span class="fn">TC_${req.id.replace('-','_')}_SignalRange</span>() {\n  <span class="kw">float</span> sigValue;\n  <span class="kw">int</span> violations = <span class="num">0</span>;\n  TestCaseTitle(<span class="str">"${req.id}"</span>, <span class="str">"${req.title}"</span>);\n  <span class="kw">while</span> (timeNow() / <span class="num">100000.0</span> &lt; <span class="num">2000</span>) {\n    sigValue = ${req.parameters.signal_name||'Signal'};\n    <span class="kw">if</span> (sigValue &lt; <span class="num">${req.parameters.min_value}</span> || sigValue &gt; <span class="num">${req.parameters.max_value}</span>) violations++;\n    wait(<span class="num">10</span>);\n  }\n  <span class="kw">if</span>(violations == <span class="num">0</span>) TestStepPass(<span class="str">"OK"</span>,<span class="str">""</span>); <span class="kw">else</span> TestStepFail(<span class="str">"FAIL"</span>,<span class="str">"%d violations"</span>, violations);\n}`,
+      response: `<span class="cm">/* ${req.id} · ${req.title} */</span>\n\n<span class="kw">testcase</span> <span class="fn">TC_${req.id.replace('-','_')}_ResponseTime</span>() {\n  <span class="kw">message</span> ${req.parameters.request_id||'0x7DF'} request;\n  <span class="kw">float</span> tSent, elapsed;\n  TestCaseTitle(<span class="str">"${req.id}"</span>, <span class="str">"${req.title}"</span>);\n  tSent = timeNow() / <span class="num">100000.0</span>;\n  output(request);\n  <span class="kw">if</span> (TestWaitForMessage(${req.parameters.response_id||'0x7E8'}, <span class="num">${req.parameters.max_response_ms||50}</span>)) {\n    elapsed = timeNow() / <span class="num">100000.0</span> - tSent;\n    <span class="kw">if</span> (elapsed &lt;= <span class="num">${req.parameters.max_response_ms||50}</span>) TestStepPass(<span class="str">"RESP_OK"</span>,<span class="str">"%.1f ms"</span>,elapsed); <span class="kw">else</span> TestStepFail(<span class="str">"RESP_SLOW"</span>,<span class="str">"%.1f ms"</span>,elapsed);\n  }\n}`,
+      presence: `<span class="cm">/* ${req.id} · ${req.title} */</span>\n\n<span class="kw">testcase</span> <span class="fn">TC_${req.id.replace('-','_')}_Presence</span>() {\n  TestCaseTitle(<span class="str">"${req.id}"</span>, <span class="str">"${req.title}"</span>);\n  <span class="kw">if</span> (TestWaitForMessage(${req.parameters.message_id||'0x2B0'}, <span class="num">${req.parameters.timeout_ms||500}</span>)) {\n    TestStepPass(<span class="str">"PRESENT"</span>, <span class="str">"Message seen on bus"</span>);\n  } <span class="kw">else</span> {\n    TestStepFail(<span class="str">"MISSING"</span>, <span class="str">"Not on bus"</span>);\n  }\n}`,
+    };
+    document.getElementById('caplPreview').innerHTML = previews[req.type] || `<span class="cm">/* preview not available */</span>`;
+  }
+
+  // ── Generate ─────────────────────────────────────────────────────────────────
+  async function runGenerate() {
+    if (!parsedData) return;
+    document.getElementById('generateBtn').disabled = true;
+    document.getElementById('generateBtn').textContent = '⏳ Generating...';
+    updatePipeline(3);
+
+    const options = {
+      capl:      document.getElementById('optCapl').checked,
+      vtp:       document.getElementById('optVtp').checked,
+      vtestunit: document.getElementById('optVtestunit').checked,
+    };
+
+    try {
+      const resp = await fetch(`${BASE_URL}/api/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ raw: parsedData.raw, options }),
+      });
+      const data = await resp.json();
+      if (data.error) { alert('Generate error: ' + data.error); return; }
+
+      zipFilename = data.zip.split('/').pop();
+      renderOutputFiles(data.files);
+      renderLog(data.log);
+      document.getElementById('downloadBtn').disabled = false;
+      document.getElementById('logSection').classList.remove('hidden');
+      document.getElementById('generateBtn').textContent = '✓ Generated';
+      updatePipeline(4);
+    } catch (err) {
+      alert('Generation failed: ' + err.message);
+      document.getElementById('generateBtn').disabled = false;
+      document.getElementById('generateBtn').textContent = '⚡ Generate All';
+    }
+  }
+
+  // ── Output ───────────────────────────────────────────────────────────────────
+  function renderOutputFiles(files) {
+    const icons = { '.can': '⚙', '.vtp': '📋', '.vtestunit': '🗂', '.json': '{}' };
+    const descs = { '.can': 'CAPL test script', '.vtp': 'vTestStudio project', '.vtestunit': 'Test unit module', '.json': 'Requirements source' };
+    const el = document.getElementById('outputFilesList');
+    el.innerHTML = '';
+    files.forEach(f => {
+      const ext = f.substring(f.lastIndexOf('.'));
+      el.innerHTML += `
+        <div class="output-item">
+          <div class="output-file-icon">${icons[ext]||'📄'}</div>
+          <div>
+            <div class="output-name">${f}</div>
+            <div class="output-desc">${descs[ext]||'Generated file'}</div>
+          </div>
+          <button class="btn-dl">↓ zip</button>
+        </div>`;
+    });
+  }
+
+  function renderLog(lines) {
+    const el = document.getElementById('logOutput');
+    el.innerHTML = lines.map(l => {
+      const t = new Date().toLocaleTimeString('sv-SE');
+      const cls = l.startsWith('✓') ? 'log-ok' : l.startsWith('→') ? 'log-info' : 'log-ok';
+      return `<div class="log-line"><span class="log-time">${t}</span><span class="${cls}">${l}</span></div>`;
+    }).join('');
+    el.scrollTop = el.scrollHeight;
+  }
+
+  function addLog(type, msg) {
+    const el = document.getElementById('logOutput');
+    if (!el) return;
+    document.getElementById('logSection').classList.remove('hidden');
+    const t = new Date().toLocaleTimeString('sv-SE');
+    const cls = type === 'ok' ? 'log-ok' : type === 'info' ? 'log-info' : 'log-warn';
+    el.innerHTML += `<div class="log-line"><span class="log-time">${t}</span><span class="${cls}">${msg}</span></div>`;
+  }
+
+  // ── Download ─────────────────────────────────────────────────────────────────
+  function downloadZip() {
+    if (zipFilename) window.location.href = `${BASE_URL}/api/download/${zipFilename}`;
+  }
+
+  // ── UI helpers ────────────────────────────────────────────────────────────────
+  function showFileLoaded(name, size, count) {
+    document.getElementById('uploadZone').style.display = 'none';
+    document.getElementById('fileLoaded').classList.add('visible');
+    document.getElementById('loadedFileName').textContent = name;
+    document.getElementById('loadedFileMeta').textContent = `${(size/1024).toFixed(1)} KB · ${count} requirements`;
+  }
+
+  function resetUpload() {
+    parsedData = null; zipFilename = null;
+    document.getElementById('uploadZone').style.display = '';
+    document.getElementById('fileLoaded').classList.remove('visible');
+    document.getElementById('fileInput').value = '';
+    document.getElementById('reqTableBody').innerHTML = '<tr><td colspan="4" class="empty-state">Upload a requirements.json to begin</td></tr>';
+    document.getElementById('reqCount').textContent = '0 items';
+    document.getElementById('caplPreview').innerHTML = '<span style="color:var(--text-dim);">/* Upload requirements to see generated CAPL preview */</span>';
+    document.getElementById('previewLabel').textContent = '—';
+    document.getElementById('generateBtn').disabled = true;
+    document.getElementById('generateBtn').textContent = '⚡ Generate All';
+    document.getElementById('downloadBtn').disabled = true;
+    document.getElementById('outputFilesList').innerHTML = '<div style="color:var(--text-dim);font-size:11px;font-family:\'IBM Plex Mono\',monospace;padding:8px 0;">Generate to see output files</div>';
+    document.getElementById('logSection').classList.add('hidden');
+    document.getElementById('logOutput').innerHTML = '';
+    document.getElementById('navBadge').style.display = 'none';
+    ['statReqs','statTests','statModules'].forEach(id => document.getElementById(id).textContent = '0');
+    updatePipeline(1);
+  }
+
+  function updatePipeline(activeStep) {
+    for (let i = 1; i <= 4; i++) {
+      const el = document.getElementById(`step${i}`);
+      const num = el.querySelector('.step-num');
+      el.className = 'pipeline-step ' + (i < activeStep ? 'done' : i === activeStep ? 'active' : 'pending');
+      num.textContent = i < activeStep ? '✓' : i;
+    }
+    if (activeStep >= 2) document.querySelector('#step2 .step-sub').textContent = `${parsedData?.count||0} reqs found`;
+    if (activeStep >= 4) document.querySelector('#step4 .step-sub').textContent = 'ready';
+  }
+
+  function scrollToGenerate() {
+    document.getElementById('generateCard').scrollIntoView({ behavior: 'smooth' });
+  }
+</script>
+</body>
+</html>
