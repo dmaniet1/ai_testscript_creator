@@ -120,6 +120,25 @@
   .section-title { font-size:11px; font-family:'IBM Plex Mono',monospace; text-transform:uppercase; letter-spacing:.1em; color:var(--text-muted); margin-bottom:10px; }
   .hidden { display:none !important; }
   .mt-16 { margin-top:16px; }
+  .prompt-input {
+    width:100%; min-height:110px; resize:vertical; border-radius:6px; border:1px solid var(--border);
+    background:#0a0c10; color:var(--text); padding:10px 12px; font-family:'IBM Plex Mono',monospace; font-size:11px; line-height:1.6;
+  }
+  .prompt-input:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 2px rgba(0,212,255,.1); }
+  .btn-secondary {
+    background:transparent; color:var(--accent); border:1px solid rgba(0,212,255,.35);
+    width:100%; margin-top:10px;
+  }
+  .btn-secondary:hover:not(:disabled) { background:rgba(0,212,255,.1); }
+  .ai-meta {
+    margin-top:10px; color:var(--text-muted); font-size:10px; font-family:'IBM Plex Mono',monospace;
+    display:flex; justify-content:space-between; gap:10px;
+  }
+  .ai-answer {
+    margin-top:10px; border:1px solid var(--border); background:#0a0c10; border-radius:6px;
+    padding:12px; font-size:12px; line-height:1.6; color:var(--text); white-space:pre-wrap;
+    max-height:260px; overflow:auto;
+  }
 </style>
 </head>
 <body>
@@ -261,6 +280,19 @@
             <label class="option-row"><input type="checkbox" id="optVtp" checked> vTestStudio project (.vtp)</label>
             <label class="option-row"><input type="checkbox" id="optVtestunit" checked> Test module files (.vtestunit)</label>
             <button class="btn btn-primary" id="generateBtn" onclick="runGenerate()" disabled>⚡ Generate All</button>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:20px;" id="aiCard">
+          <div class="card-header"><div class="card-title">AI Prompt Assistant</div></div>
+          <div class="card-body">
+            <textarea id="aiPrompt" class="prompt-input" placeholder="Ask about requirement JSON, CAPL logic, Ethernet SOME-IP mapping, or request a new requirement snippet..."></textarea>
+            <button class="btn btn-secondary" id="askBtn" onclick="askAssistant()">Ask Model</button>
+            <div class="ai-meta">
+              <span id="aiModelLabel">Model: —</span>
+              <span>RAG: templates + requirements + project libs</span>
+            </div>
+            <div id="aiAnswer" class="ai-answer">Type a prompt and click Ask Model.</div>
           </div>
         </div>
 
@@ -501,6 +533,59 @@
   function scrollToGenerate() {
     document.getElementById('generateCard').scrollIntoView({ behavior: 'smooth' });
   }
+
+  // ── AI Prompt ───────────────────────────────────────────────────────────────
+  async function askAssistant() {
+    const promptEl = document.getElementById('aiPrompt');
+    const answerEl = document.getElementById('aiAnswer');
+    const askBtn = document.getElementById('askBtn');
+    const modelLabel = document.getElementById('aiModelLabel');
+    const prompt = (promptEl.value || '').trim();
+
+    if (!prompt) {
+      answerEl.textContent = 'Please enter a prompt.';
+      return;
+    }
+
+    askBtn.disabled = true;
+    askBtn.textContent = 'Asking...';
+    answerEl.textContent = 'Working...';
+
+    try {
+      const resp = await fetch(`${BASE_URL}/api/ask`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt,
+          raw: parsedData?.raw || ''
+        })
+      });
+
+      const data = await resp.json();
+      if (data.error) {
+        answerEl.textContent = data.error;
+        modelLabel.textContent = 'Model: unavailable';
+        return;
+      }
+
+      answerEl.textContent = data.answer || 'No response.';
+      modelLabel.textContent = `Model: ${data.model || 'unknown'}`;
+      addLog('info', 'AI prompt completed');
+    } catch (err) {
+      answerEl.textContent = `Ask request failed: ${err.message}`;
+      modelLabel.textContent = 'Model: unavailable';
+    } finally {
+      askBtn.disabled = false;
+      askBtn.textContent = 'Ask Model';
+    }
+  }
+
+  document.getElementById('aiPrompt').addEventListener('keydown', (event) => {
+    if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+      event.preventDefault();
+      askAssistant();
+    }
+  });
 </script>
 </body>
 </html>

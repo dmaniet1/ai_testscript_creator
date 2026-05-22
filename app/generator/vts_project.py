@@ -45,6 +45,7 @@ def generate_vts_project(req_file: RequirementsFile, capl_modules: dict[str, str
                 tc.set("title", req.title)
                 tc.set("priority", req.priority.value)
                 tc.set("status", req.status.value)
+                tc.set("protocol", req.protocol)
                 SubElement(tc, "Description").text = req.description
                 SubElement(tc, "AcceptanceCriteria").text = req.acceptance_criteria
 
@@ -75,6 +76,8 @@ def generate_vtestunit(req_file: RequirementsFile, module_name: str, reqs: list)
 
 
 def _filename_to_type(filename: str) -> str:
+    # Matches both old-style "Project_Timing_Tests.can" and new
+    # "Project_CAN_Timing_Tests.can" / "Project_ETH_Timing_Tests.can"
     mapping = {
         "Timing":   "timing",
         "Signal":   "signal",

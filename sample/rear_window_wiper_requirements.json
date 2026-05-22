@@ -1,0 +1,327 @@
+{
+  "project": "RearWindowWiper",
+  "version": "1.0",
+  "author": "Test Engineer",
+  "requirements": [
+    {
+      "id": "REQ-RWW-001",
+      "title": "Rear wiper Off mode - button not pressed",
+      "description": "When SWMRearWiprWshr is NotPsd, ZC shall set WasherRearReq=WasherOff and ReWinWipgReq=Off",
+      "type": "signal",
+      "protocol": "CAN",
+      "priority": "high",
+      "parameters": {
+        "precondition": "CC_RearWindowWiper=Equipped",
+        "input_signal": "SWMRearWiprWshr",
+        "input_value": "NotPsd",
+        "output_signals": {
+          "WasherRearReq": "WasherOff",
+          "ReWinWipgReq": "Off"
+        },
+        "interface_swm_to_hmi": "SWMRearWiprWshr",
+        "interface_hmi_to_mgr": ["WasherRearReq", "ReWinWipgReq"]
+      },
+      "acceptance_criteria": "WasherRearReq=WasherOff and ReWinWipgReq=Off when SWMRearWiprWshr=NotPsd",
+      "status": "draft"
+    },
+    {
+      "id": "REQ-RWW-002",
+      "title": "Rear wiper Wiping mode - short button press",
+      "description": "When SWMRearWiprWshr is Psd for less than t_button_press_rear_window (0.5s), ZC shall set WasherRearReq=WasherOff and toggle ReWinWipgReq",
+      "type": "timing",
+      "protocol": "CAN",
+      "priority": "high",
+      "parameters": {
+        "precondition": "CC_RearWindowWiper=Equipped",
+        "input_signal": "SWMRearWiprWshr",
+        "input_value": "Psd",
+        "press_duration_condition": "< t_button_press_rear_window",
+        "t_button_press_rear_window_s": 0.5,
+        "t_button_press_range_s": [0.0, 5.0],
+        "output_signals": {
+          "WasherRearReq": "WasherOff",
+          "ReWinWipgReq": "Toggle"
+        },
+        "reaction_time_ms": 50
+      },
+      "acceptance_criteria": "ReWinWipgReq is toggled and WasherRearReq=WasherOff within 50ms when button pressed for < 0.5s",
+      "status": "draft"
+    },
+    {
+      "id": "REQ-RWW-003",
+      "title": "Rear wiper Washing mode - long button press",
+      "description": "When SWMRearWiprWshr is Psd for more than t_button_press_rear_window (0.5s), ZC shall set WasherRearReq=WasherOn (held as long as button is pressed) and ReWinWipgReq=Off",
+      "type": "timing",
+      "protocol": "CAN",
+      "priority": "high",
+      "parameters": {
+        "precondition": "CC_RearWindowWiper=Equipped",
+        "input_signal": "SWMRearWiprWshr",
+        "input_value": "Psd",
+        "press_duration_condition": "> t_button_press_rear_window",
+        "t_button_press_rear_window_s": 0.5,
+        "t_button_press_range_s": [0.0, 5.0],
+        "output_signals": {
+          "WasherRearReq": "WasherOn",
+          "ReWinWipgReq": "Off"
+        },
+        "washer_active_condition": "as long as button is pressed",
+        "reaction_time_ms": 50
+      },
+      "acceptance_criteria": "WasherRearReq=WasherOn (held while button pressed) and ReWinWipgReq=Off within 50ms when button pressed for > 0.5s",
+      "status": "draft"
+    },
+    {
+      "id": "REQ-RWW-004",
+      "title": "Rear wiper Fault mode - SWMRearWiprWshr QF invalid",
+      "description": "If the SWMRearWiprWshr qualifier flag (QF) is not valid for more than D=1500ms, ZC shall set WasherRearReq=WasherOff and ReWinWipgReq=Off",
+      "type": "timing",
+      "protocol": "CAN",
+      "priority": "high",
+      "parameters": {
+        "precondition": "CC_RearWindowWiper=Equipped",
+        "fault_condition": "SWMRearWiprWshr_QF != Valid",
+        "detection_time_ms": 1500,
+        "output_signals": {
+          "WasherRearReq": "WasherOff",
+          "ReWinWipgReq": "Off"
+        }
+      },
+      "acceptance_criteria": "WasherRearReq=WasherOff and ReWinWipgReq=Off within 1500ms after SWMRearWiprWshr QF becomes invalid",
+      "status": "draft"
+    },
+    {
+      "id": "REQ-RWW-005",
+      "title": "Rear wiper Fault mode - lever disconnected",
+      "description": "If SWMLeLvrDiag != LeLvrConnected for more than D=1500ms, ZC shall set WasherRearReq=WasherOff and ReWinWipgReq=Off",
+      "type": "timing",
+      "protocol": "CAN",
+      "priority": "high",
+      "parameters": {
+        "precondition": "CC_RearWindowWiper=Equipped",
+        "fault_condition": "SWMLeLvrDiag != LeLvrConnected",
+        "detection_time_ms": 1500,
+        "output_signals": {
+          "WasherRearReq": "WasherOff",
+          "ReWinWipgReq": "Off"
+        }
+      },
+      "acceptance_criteria": "WasherRearReq=WasherOff and ReWinWipgReq=Off within 1500ms after SWMLeLvrDiag != LeLvrConnected",
+      "status": "draft"
+    },
+    {
+      "id": "REQ-RWW-006",
+      "title": "Rear wiper default state at startup",
+      "description": "At startup when entering UM=Convenience, WasherRearReq shall default to WasherOff and ReWinWipgReq shall default to Off",
+      "type": "signal",
+      "protocol": "CAN",
+      "priority": "medium",
+      "parameters": {
+        "precondition": "CC_RearWindowWiper=Equipped",
+        "trigger": "Enter UM=Convenience",
+        "default_signals": {
+          "WasherRearReq": "WasherOff",
+          "ReWinWipgReq": "Off"
+        }
+      },
+      "acceptance_criteria": "WasherRearReq=WasherOff and ReWinWipgReq=Off immediately after entering UM=Convenience",
+      "status": "draft"
+    },
+    {
+      "id": "REQ-RWW-007",
+      "title": "Rear wiper reaction time",
+      "description": "ZC shall react to SWMRearWiprWshr input changes within R=50ms",
+      "type": "response",
+      "protocol": "CAN",
+      "priority": "high",
+      "parameters": {
+        "precondition": "CC_RearWindowWiper=Equipped",
+        "input_signal": "SWMRearWiprWshr",
+        "max_reaction_time_ms": 50
+      },
+      "acceptance_criteria": "Output signal update (WasherRearReq / ReWinWipgReq) observed within 50ms of input change",
+      "status": "draft"
+    },
+    {
+      "id": "REQ-RWW-001E",
+      "title": "Rear wiper Off mode - button not pressed (Ethernet)",
+      "description": "When SWMRearWiprWshr is NotPsd over SOME-IP, ZC shall publish WasherRearReq=WasherOff and ReWinWipgReq=Off via SOME-IP event",
+      "type": "signal",
+      "protocol": "Ethernet",
+      "priority": "high",
+      "parameters": {
+        "precondition": "CC_RearWindowWiper=Equipped",
+        "input_signal": "SWMRearWiprWshr",
+        "input_value": "NotPsd",
+        "output_signals": {
+          "WasherRearReq": "WasherOff",
+          "ReWinWipgReq": "Off"
+        },
+        "someip_service_id": "0247",
+        "someip_instance_id": "0001",
+        "someip_event_group_id": "0001",
+        "someip_event_id": "8001",
+        "ip_address": "239.192.255.100",
+        "udp_port": 30509
+      },
+      "acceptance_criteria": "SOME-IP event 0x8001 received with WasherRearReq=WasherOff and ReWinWipgReq=Off",
+      "status": "draft"
+    },
+    {
+      "id": "REQ-RWW-002E",
+      "title": "Rear wiper Wiping mode - short button press (Ethernet)",
+      "description": "When SWMRearWiprWshr is Psd for less than t_button_press_rear_window (0.5s) over SOME-IP, ZC shall publish WasherRearReq=WasherOff and toggle ReWinWipgReq",
+      "type": "timing",
+      "protocol": "Ethernet",
+      "priority": "high",
+      "parameters": {
+        "precondition": "CC_RearWindowWiper=Equipped",
+        "input_signal": "SWMRearWiprWshr",
+        "input_value": "Psd",
+        "press_duration_condition": "< t_button_press_rear_window",
+        "t_button_press_rear_window_s": 0.5,
+        "t_button_press_range_s": [0.0, 5.0],
+        "output_signals": {
+          "WasherRearReq": "WasherOff",
+          "ReWinWipgReq": "Toggle"
+        },
+        "reaction_time_ms": 50,
+        "someip_service_id": "0247",
+        "someip_instance_id": "0001",
+        "someip_event_group_id": "0001",
+        "someip_event_id": "8001",
+        "ip_address": "239.192.255.100",
+        "udp_port": 30509
+      },
+      "acceptance_criteria": "SOME-IP event 0x8001 with toggled ReWinWipgReq received within 50ms of short press release",
+      "status": "draft"
+    },
+    {
+      "id": "REQ-RWW-003E",
+      "title": "Rear wiper Washing mode - long button press (Ethernet)",
+      "description": "When SWMRearWiprWshr is Psd for more than t_button_press_rear_window (0.5s) over SOME-IP, ZC shall publish WasherRearReq=WasherOn (held) and ReWinWipgReq=Off",
+      "type": "timing",
+      "protocol": "Ethernet",
+      "priority": "high",
+      "parameters": {
+        "precondition": "CC_RearWindowWiper=Equipped",
+        "input_signal": "SWMRearWiprWshr",
+        "input_value": "Psd",
+        "press_duration_condition": "> t_button_press_rear_window",
+        "t_button_press_rear_window_s": 0.5,
+        "t_button_press_range_s": [0.0, 5.0],
+        "output_signals": {
+          "WasherRearReq": "WasherOn",
+          "ReWinWipgReq": "Off"
+        },
+        "washer_active_condition": "as long as button is pressed",
+        "reaction_time_ms": 50,
+        "someip_service_id": "0247",
+        "someip_instance_id": "0001",
+        "someip_event_group_id": "0001",
+        "someip_event_id": "8001",
+        "ip_address": "239.192.255.100",
+        "udp_port": 30509
+      },
+      "acceptance_criteria": "SOME-IP event 0x8001 with WasherRearReq=WasherOn received within 50ms of long press threshold crossing",
+      "status": "draft"
+    },
+    {
+      "id": "REQ-RWW-004E",
+      "title": "Rear wiper Fault mode - SWMRearWiprWshr QF invalid (Ethernet)",
+      "description": "If SWMRearWiprWshr QF is not valid for more than D=1500ms, ZC shall publish WasherRearReq=WasherOff and ReWinWipgReq=Off via SOME-IP",
+      "type": "timing",
+      "protocol": "Ethernet",
+      "priority": "high",
+      "parameters": {
+        "precondition": "CC_RearWindowWiper=Equipped",
+        "fault_condition": "SWMRearWiprWshr_QF != Valid",
+        "detection_time_ms": 1500,
+        "output_signals": {
+          "WasherRearReq": "WasherOff",
+          "ReWinWipgReq": "Off"
+        },
+        "someip_service_id": "0247",
+        "someip_instance_id": "0001",
+        "someip_event_group_id": "0001",
+        "someip_event_id": "8001",
+        "ip_address": "239.192.255.100",
+        "udp_port": 30509
+      },
+      "acceptance_criteria": "SOME-IP event 0x8001 with safe state within 1500ms after QF goes invalid",
+      "status": "draft"
+    },
+    {
+      "id": "REQ-RWW-005E",
+      "title": "Rear wiper Fault mode - lever disconnected (Ethernet)",
+      "description": "If SWMLeLvrDiag != LeLvrConnected for more than D=1500ms, ZC shall publish WasherRearReq=WasherOff and ReWinWipgReq=Off via SOME-IP",
+      "type": "timing",
+      "protocol": "Ethernet",
+      "priority": "high",
+      "parameters": {
+        "precondition": "CC_RearWindowWiper=Equipped",
+        "fault_condition": "SWMLeLvrDiag != LeLvrConnected",
+        "detection_time_ms": 1500,
+        "output_signals": {
+          "WasherRearReq": "WasherOff",
+          "ReWinWipgReq": "Off"
+        },
+        "someip_service_id": "0247",
+        "someip_instance_id": "0001",
+        "someip_event_group_id": "0001",
+        "someip_event_id": "8001",
+        "ip_address": "239.192.255.100",
+        "udp_port": 30509
+      },
+      "acceptance_criteria": "SOME-IP event 0x8001 with safe state within 1500ms after lever disconnect detected",
+      "status": "draft"
+    },
+    {
+      "id": "REQ-RWW-006E",
+      "title": "Rear wiper default state at startup (Ethernet)",
+      "description": "At startup (UM=Convenience), ZC shall publish WasherRearReq=WasherOff and ReWinWipgReq=Off via SOME-IP event before any button press",
+      "type": "signal",
+      "protocol": "Ethernet",
+      "priority": "medium",
+      "parameters": {
+        "precondition": "CC_RearWindowWiper=Equipped",
+        "trigger": "Enter UM=Convenience",
+        "input_signal": "SWMRearWiprWshr",
+        "input_value": "NotPsd",
+        "output_signals": {
+          "WasherRearReq": "WasherOff",
+          "ReWinWipgReq": "Off"
+        },
+        "someip_service_id": "0247",
+        "someip_instance_id": "0001",
+        "someip_event_group_id": "0001",
+        "someip_event_id": "8001",
+        "ip_address": "239.192.255.100",
+        "udp_port": 30509
+      },
+      "acceptance_criteria": "SOME-IP event 0x8001 carries WasherRearReq=WasherOff and ReWinWipgReq=Off immediately after UM=Convenience entered",
+      "status": "draft"
+    },
+    {
+      "id": "REQ-RWW-007E",
+      "title": "Rear wiper reaction time (Ethernet)",
+      "description": "ZC shall publish updated output states via SOME-IP within R=50ms of SWMRearWiprWshr input change",
+      "type": "response",
+      "protocol": "Ethernet",
+      "priority": "high",
+      "parameters": {
+        "precondition": "CC_RearWindowWiper=Equipped",
+        "input_signal": "SWMRearWiprWshr",
+        "max_reaction_time_ms": 50,
+        "someip_service_id": "0247",
+        "someip_instance_id": "0001",
+        "someip_event_group_id": "0001",
+        "someip_event_id": "8001",
+        "ip_address": "239.192.255.100",
+        "udp_port": 30509
+      },
+      "acceptance_criteria": "SOME-IP event 0x8001 observed within 50ms of SWMRearWiprWshr state change",
+      "status": "draft"
+    }
+  ]
+}

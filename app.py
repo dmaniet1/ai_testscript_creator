@@ -4,6 +4,7 @@ import json
 import zipfile
 from pathlib import Path
 from datetime import datetime
+import requests
 
 from flask import Flask, render_template, request, jsonify, send_file
 
@@ -19,6 +20,157 @@ BASE_URL = "/ai_test_gen"
 
 OUTPUT_DIR = Path("output")
 OUTPUT_DIR.mkdir(exist_ok=True)
+
+GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "")
+API_URL = "https://models.github.ai/inference/chat/completions"
+MODEL = os.environ.get("GITHUB_MODEL", "openai/gpt-4.1")
+
+# Keep request payload safely below model request-size limits.
+MAX_RAG_CHARS = int(os.environ.get("MAX_RAG_CHARS", "14000"))
+MAX_USER_PROMPT_CHARS = int(os.environ.get("MAX_USER_PROMPT_CHARS", "2000"))
+MAX_REQUIREMENTS_CHARS = int(os.environ.get("MAX_REQUIREMENTS_CHARS", "3000"))
+MAX_TEMPLATE_CHARS = int(os.environ.get("MAX_TEMPLATE_CHARS", "1200"))
+MAX_PROJECT_FILE_CHARS = int(os.environ.get("MAX_PROJECT_FILE_CHARS", "1000"))
+MAX_TEMPLATES = int(os.environ.get("MAX_TEMPLATES", "8"))
+MAX_PROJECT_FILES = int(os.environ.get("MAX_PROJECT_FILES", "6"))
+
+
+def _safe_read(path: Path) -> str:
+    try:
+        return path.read_text(encoding="utf-8")
+    except Exception:
+        return ""
+
+
+def _clip_text(text: str, max_chars: int) -> str:
+    if len(text) <= max_chars:
+        return text
+    clipped = text[:max_chars]
+    omitted = len(text) - max_chars
+    return f"{clipped}\n\n... [truncated {omitted} chars]"
+
+
+def _fit_json_payload(payload: dict, max_chars: int) -> str:
+    """Serialize and trim large sections until payload fits the max char budget."""
+    serialized = json.dumps(payload, ensure_ascii=True)
+    if len(serialized) <= max_chars:
+        return serialized
+
+    # Priority order for trimming if still too large.
+    trim_order = [
+        ("project_files", int(MAX_PROJECT_FILE_CHARS * 0.7)),
+        ("capl_jinja_templates", int(MAX_TEMPLATE_CHARS * 0.7)),
+        ("requirements_json", int(MAX_REQUIREMENTS_CHARS * 0.7)),
+        ("user_prompt", int(MAX_USER_PROMPT_CHARS * 0.7)),
+    ]
+
+    for key, reduced_limit in trim_order:
+        if key == "project_files":
+            for f in list(payload.get("project_files", {}).keys()):
+                payload["project_files"][f] = _clip_text(payload["project_files"][f], reduced_limit)
+        elif key == "capl_jinja_templates":
+            for t in list(payload.get("capl_jinja_templates", {}).keys()):
+                payload["capl_jinja_templates"][t] = _clip_text(payload["capl_jinja_templates"][t], reduced_limit)
+        else:
+            payload[key] = _clip_text(str(payload.get(key, "")), reduced_limit)
+
+        serialized = json.dumps(payload, ensure_ascii=True)
+        if len(serialized) <= max_chars:
+            return serialized
+
+    # Last resort: remove project file bodies entirely.
+    payload["project_files"] = {"note": "omitted to respect payload limit"}
+    serialized = json.dumps(payload, ensure_ascii=True)
+    if len(serialized) <= max_chars:
+        return serialized
+
+    # Absolute fallback: hard clip final JSON string.
+    return _clip_text(serialized, max_chars)
+
+
+def build_rag_context(user_prompt: str, raw_requirements: str = "") -> str:
+    """Build JSON RAG context from templates and core project files."""
+    root = Path(__file__).parent
+
+    template_dir = root / "app" / "capl_templates"
+    templates = {}
+    if template_dir.exists():
+        for tpl in sorted(template_dir.glob("*.j2"))[:MAX_TEMPLATES]:
+            templates[tpl.name] = _clip_text(_safe_read(tpl), MAX_TEMPLATE_CHARS)
+
+    important_files = [
+        root / "app.py",
+        root / "README.md",
+        root / "requirements.txt",
+        root / "app" / "generator" / "capl_generator.py",
+        root / "app" / "generator" / "vts_project.py",
+        root / "app" / "requirements_parser" / "models.py",
+        root / "app" / "requirements_parser" / "parser.py",
+    ]
+
+    project_files = {}
+    for f in important_files[:MAX_PROJECT_FILES]:
+        if f.exists():
+            project_files[str(f.relative_to(root))] = _clip_text(_safe_read(f), MAX_PROJECT_FILE_CHARS)
+
+    libs = []
+    reqs_txt = _safe_read(root / "requirements.txt")
+    for line in reqs_txt.splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        libs.append(line)
+
+    rag_payload = {
+        "task": "Automotive requirement assistant for CAPL/vTestStudio generation",
+        "user_prompt": _clip_text(user_prompt, MAX_USER_PROMPT_CHARS),
+        "libraries": libs,
+        "capl_jinja_templates": templates,
+        "project_files": project_files,
+        "requirements_json": _clip_text(raw_requirements, MAX_REQUIREMENTS_CHARS),
+    }
+
+    return _fit_json_payload(rag_payload, MAX_RAG_CHARS)
+
+
+def ask_model(prompt: str, raw_requirements: str = "") -> str:
+    if not GITHUB_TOKEN:
+        return "Error: missing GITHUB_TOKEN environment variable."
+
+    rag_context = build_rag_context(prompt, raw_requirements)
+    try:
+        response = requests.post(
+            API_URL,
+            headers={
+                "Authorization": f"Bearer {GITHUB_TOKEN}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": MODEL,
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": (
+                            "You are an assistant for automotive CAPL test generation. "
+                            "Use the provided RAG JSON context (templates, libraries, and files) "
+                            "to answer concretely and produce requirement JSON snippets when needed."
+                        ),
+                    },
+                    {"role": "system", "content": rag_context},
+                    {"role": "user", "content": prompt},
+                ],
+                "max_tokens": 800,
+            },
+            timeout=30,
+        )
+    except requests.RequestException as exc:
+        return f"Error: request failed: {exc}"
+
+    if response.status_code != 200:
+        return f"Error {response.status_code}: {response.text}"
+
+    data = response.json()
+    return data.get("choices", [{}])[0].get("message", {}).get("content", "")
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────
@@ -162,6 +314,23 @@ def sample():
     if sample_path.exists():
         return send_file(sample_path, mimetype="application/json")
     return jsonify({"error": "Sample not found"}), 404
+
+
+@app.route("/api/ask", methods=["POST"])
+@app.route("/ai_test_gen/api/ask", methods=["POST"])
+def ask():
+    data = request.get_json() or {}
+    prompt = (data.get("prompt") or "").strip()
+    raw_requirements = data.get("raw", "")
+
+    if not prompt:
+        return jsonify({"error": "Missing prompt"}), 400
+
+    answer = ask_model(prompt, raw_requirements)
+    if answer.startswith("Error"):
+        return jsonify({"error": answer}), 500
+
+    return jsonify({"answer": answer, "model": MODEL})
 
 
 if __name__ == "__main__":

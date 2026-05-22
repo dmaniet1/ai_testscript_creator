@@ -15,9 +15,15 @@ def _get_env() -> Environment:
     )
 
 
+def _proto_key(req: Requirement) -> str:
+    """Return 'ETH' for Ethernet requirements, 'CAN' for everything else."""
+    return "ETH" if req.protocol.upper() == "ETHERNET" else "CAN"
+
+
 def render_testcase(req: Requirement) -> str:
     env = _get_env()
-    template = env.get_template(f"{req.type.value}.can.j2")
+    prefix = "eth_" if _proto_key(req) == "ETH" else ""
+    template = env.get_template(f"{prefix}{req.type.value}.can.j2")
     return template.render(req=req, timestamp=datetime.now().isoformat())
 
 
@@ -32,24 +38,21 @@ def group_by_type(requirements: list[Requirement]) -> dict[str, list[Requirement
 def generate_capl_modules(req_file: RequirementsFile) -> dict[str, str]:
     """
     Returns a dict of { filename: capl_content }
-    e.g. { "CAN_Timing_Tests.can": "/* ... */\n\ntestcase TC_REQ001 ..." }
+    Groups by (protocol_key, type) so CAN and Ethernet produce separate .can modules.
+    e.g. { "Project_CAN_Timing_Tests.can": ..., "Project_ETH_Signal_Tests.can": ... }
     """
-    groups = group_by_type(req_file.requirements)
+    groups: dict[tuple[str, str], list[Requirement]] = defaultdict(list)
+    for req in req_file.requirements:
+        groups[(_proto_key(req), req.type.value)].append(req)
+
     modules = {}
-
-    type_to_filename = {
-        "timing":   f"{req_file.project}_Timing_Tests.can",
-        "signal":   f"{req_file.project}_Signal_Tests.can",
-        "response": f"{req_file.project}_Response_Tests.can",
-        "presence": f"{req_file.project}_Presence_Tests.can",
-    }
-
-    for req_type, reqs in groups.items():
-        filename = type_to_filename.get(req_type, f"{req_file.project}_{req_type}_Tests.can")
+    for (proto, req_type), reqs in groups.items():
+        filename = f"{req_file.project}_{proto}_{req_type.capitalize()}_Tests.can"
         header = (
             f"/*\n"
             f" * CAPL Test Module : {filename}\n"
             f" * Project          : {req_file.project}\n"
+            f" * Protocol         : {proto}\n"
             f" * Generated        : {datetime.now().isoformat()}\n"
             f" * Requirements     : {', '.join(r.id for r in reqs)}\n"
             f" */\n\n"
